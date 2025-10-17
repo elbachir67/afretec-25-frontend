@@ -214,7 +214,7 @@ export default function DashboardScreen({ navigation }) {
       <View style={styles.navButtons}>
         <TouchableOpacity
           style={styles.navBtn}
-          onPress={() => alert(t("myBadges") + " (Coming soon)")}
+          onPress={() => navigation.navigate("Badges")}
         >
           <Text style={styles.navBtnIcon}>🏅</Text>
           <Text style={styles.navBtnText}>{t("myBadges")}</Text>
@@ -222,7 +222,7 @@ export default function DashboardScreen({ navigation }) {
 
         <TouchableOpacity
           style={styles.navBtn}
-          onPress={() => alert(t("leaderboard") + " (Coming soon)")}
+          onPress={() => navigation.navigate("Leaderboard")}
         >
           <Text style={styles.navBtnIcon}>📊</Text>
           <Text style={styles.navBtnText}>{t("leaderboard")}</Text>

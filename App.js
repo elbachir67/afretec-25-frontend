@@ -7,6 +7,10 @@ import DashboardScreen from "./src/screens/main/DashboardScreen";
 import MicroEvalScreen from "./src/screens/main/MicroEvalScreen";
 import "./src/i18n";
 
+import BadgesScreen from "./src/screens/main/BadgesScreen";
+
+import LeaderboardScreen from "./src/screens/main/LeaderboardScreen";
+
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState("Welcome");
   const [screenParams, setScreenParams] = useState(null);
@@ -58,6 +62,12 @@ export default function App() {
 
   if (currentScreen === "Login") {
     return <LoginScreen navigation={navigation} />;
+  }
+  if (currentScreen === "Badges") {
+    return <BadgesScreen navigation={navigation} />;
+  }
+  if (currentScreen === "Leaderboard") {
+    return <LeaderboardScreen navigation={navigation} />;
   }
 
   return <WelcomeScreen navigation={navigation} />;

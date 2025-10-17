@@ -12,6 +12,8 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 
+import { checkAndUnlockBadges } from "./gamificationService";
+
 const POINTS = {
   MICRO_EVAL: 10,
   OPTIONAL_COMMENT: 5,
@@ -107,11 +109,20 @@ export const submitMicroEvaluation = async (
       createdAt: serverTimestamp(),
     });
 
+    // Vérifier déblocage badges
+    const { checkAndUnlockBadges } = require("./gamificationService");
+    const newBadges = await checkAndUnlockBadges({
+      id: participantId,
+      code: participantCode,
+      badges: [], // sera chargé dans checkAndUnlockBadges
+    });
+
     return {
       success: true,
       pointsEarned,
       isEarlyBird,
       bonusDetails,
+      newBadges,
     };
   } catch (error) {
     console.error("Error submitting evaluation:", error);
