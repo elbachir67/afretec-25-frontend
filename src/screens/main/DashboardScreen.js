@@ -7,12 +7,12 @@ import {
   ActivityIndicator,
   ScrollView,
   Image,
+  RefreshControl,
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getParticipantByCode } from "../../services/participantService";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "../../services/firebase";
+import { getEvaluationSummary } from "../../services/evaluationService";
 
 const COLORS = {
   primary: "#1E40AF",
@@ -23,15 +23,15 @@ const COLORS = {
   white: "#FFFFFF",
   black: "#111827",
   gold: "#FCD34D",
+  danger: "#EF4444",
 };
 
 export default function DashboardScreen({ navigation }) {
   const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [participant, setParticipant] = useState(null);
-  const [rank, setRank] = useState(0);
-  const [totalParticipants, setTotalParticipants] = useState(0);
-  const [currentActivity, setCurrentActivity] = useState(null);
+  const [evaluationSummary, setEvaluationSummary] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -50,61 +50,33 @@ export default function DashboardScreen({ navigation }) {
       const participantData = await getParticipantByCode(code);
       setParticipant(participantData);
 
-      // Calculer rang
-      const participantsSnapshot = await getDocs(
-        collection(db, "participants")
-      );
-      const allParticipants = participantsSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
-
-      let currentRank = 0;
-      allParticipants.forEach((p, index) => {
-        if (p.code === code) {
-          currentRank = index + 1;
-        }
-      });
-
-      setRank(currentRank);
-      setTotalParticipants(participantsSnapshot.size);
-
-      // Charger activité en cours (la dernière completed)
-      console.log("🔍 Recherche activités terminées...");
-      const activitiesSnapshot = await getDocs(
-        query(collection(db, "activities"), where("isCompleted", "==", true))
-      );
-
-      console.log("📊 Activités terminées trouvées:", activitiesSnapshot.size);
-
-      if (!activitiesSnapshot.empty) {
-        // Convertir en array et trier par actualEnd (plus récent en premier)
-        const completedActivities = activitiesSnapshot.docs
-          .map(doc => ({ id: doc.id, ...doc.data() }))
-          .sort((a, b) => {
-            const timeA = a.actualEnd?.toDate?.() || new Date(0);
-            const timeB = b.actualEnd?.toDate?.() || new Date(0);
-            return timeB - timeA; // Plus récent en premier
-          });
-
-        const lastActivity = completedActivities[0];
-
-        console.log("✅ Activité sélectionnée:", lastActivity.title);
-        setCurrentActivity(lastActivity);
-      } else {
-        console.log("❌ Aucune activité terminée trouvée");
-        setCurrentActivity(null);
-      }
+      // Charger résumé des évaluations
+      const summary = await getEvaluationSummary(code);
+      setEvaluationSummary(summary);
     } catch (error) {
       console.error("Error loading dashboard:", error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadData();
   };
 
   const handleLogout = async () => {
     await AsyncStorage.removeItem("participantCode");
-    await AsyncStorage.removeItem("participantId");
+    await AsyncStorage.removeItem("participantEmail");
     navigation.navigate("Welcome");
+  };
+
+  const handleStartEvaluation = type => {
+    navigation.navigate("Evaluation", {
+      evaluationType: type,
+      participant: participant,
+    });
   };
 
   if (loading) {
@@ -116,118 +88,264 @@ export default function DashboardScreen({ navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+    >
       {/* Header */}
       <View style={styles.header}>
-        <Image
-          source={require("../../../assets/images/logo_ucad.png")}
-          style={styles.logoSmall}
-          resizeMode="contain"
-        />
+        <View style={styles.headerLogos}>
+          <Image
+            source={require("../../../assets/images/logo_ucad.png")}
+            style={styles.logoTiny}
+            resizeMode="contain"
+          />
+          <Image
+            source={require("../../../assets/images/logo_afretec.png")}
+            style={styles.logoTiny}
+            resizeMode="contain"
+          />
+        </View>
         <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>Afretec Pulse</Text>
+          <Text style={styles.headerTitle}>Afretec Pulse 2025</Text>
           <Text style={styles.headerCode}>{participant?.code}</Text>
         </View>
-        <TouchableOpacity onPress={loadData} style={{ marginRight: 15 }}>
-          <Text style={styles.refreshBtn}>🔄</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={handleLogout}>
-          <Text style={styles.logoutBtn}>🚪</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Stats Cards */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>{t("yourPoints")}</Text>
-          <Text style={styles.statValue}>{participant?.totalPoints || 0}</Text>
-        </View>
-
-        <View style={styles.statCard}>
-          <Text style={styles.statLabel}>{t("yourRank")}</Text>
-          <Text style={styles.statValue}>
-            #{rank}/{totalParticipants}
-          </Text>
+        <View style={styles.headerActions}>
+          <TouchableOpacity onPress={onRefresh} style={styles.refreshBtn}>
+            <Text style={styles.refreshIcon}>🔄</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout}>
+            <Text style={styles.logoutIcon}>🚪</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
       {/* Progress Bar */}
-      <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${Math.min(
-                  ((participant?.totalPoints || 0) / 100) * 100,
-                  100
-                )}%`,
-              },
-            ]}
-          />
-        </View>
-        <Text style={styles.progressText}>Progress towards next badge</Text>
-      </View>
-
-      {/* Current Activity */}
-      {loading ? (
-        <View style={styles.activityCard}>
-          <ActivityIndicator size="small" color={COLORS.primary} />
-          <Text style={styles.loadingText}>{t("loadingActivities")}</Text>
-        </View>
-      ) : currentActivity ? (
-        <View style={styles.activityCard}>
-          <Text style={styles.activityLabel}>🔔 {t("availableActivity")}</Text>
-          <Text style={styles.activityTitle}>
-            {currentActivity.title?.[i18n.language] ||
-              currentActivity.title?.en ||
-              "Activity"}
+      {evaluationSummary && (
+        <View style={styles.progressSection}>
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressLabel}>
+              {i18n.language === "fr" ? "Votre Progression" : "Your Progress"}
+            </Text>
+            <Text style={styles.progressValue}>
+              {evaluationSummary.totalCompleted} /{" "}
+              {evaluationSummary.totalRequired}
+            </Text>
+          </View>
+          <View style={styles.progressBar}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${evaluationSummary.progress}%` },
+              ]}
+            />
+          </View>
+          <Text style={styles.progressText}>
+            {evaluationSummary.progress}%{" "}
+            {i18n.language === "fr" ? "complété" : "completed"}
           </Text>
-          <TouchableOpacity
-            style={styles.pulseBtn}
-            onPress={() =>
-              navigation.navigate("MicroEval", {
-                activity: currentActivity,
-                participant: participant,
-              })
-            }
-          >
-            <Text style={styles.pulseBtnText}>{t("pulseNow")}</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={styles.activityCard}>
-          <Text style={styles.activityLabel}>
-            ℹ️ {t("noActivityAvailable")}
-          </Text>
-          <Text style={styles.noActivityText}>{t("noActivityText")}</Text>
-          <TouchableOpacity
-            style={styles.refreshBtnContainer}
-            onPress={loadData}
-          >
-            <Text style={styles.refreshBtnText}>🔄 {t("refresh")}</Text>
-          </TouchableOpacity>
         </View>
       )}
 
-      {/* Navigation Buttons */}
-      <View style={styles.navButtons}>
-        <TouchableOpacity
-          style={styles.navBtn}
-          onPress={() => navigation.navigate("Badges")}
-        >
-          <Text style={styles.navBtnIcon}>🏅</Text>
-          <Text style={styles.navBtnText}>{t("myBadges")}</Text>
-        </TouchableOpacity>
+      {/* Évaluations */}
+      <View style={styles.evaluationsSection}>
+        <Text style={styles.sectionTitle}>
+          📋 {i18n.language === "fr" ? "Vos Évaluations" : "Your Evaluations"}
+        </Text>
 
-        <TouchableOpacity
-          style={styles.navBtn}
-          onPress={() => navigation.navigate("Leaderboard")}
-        >
-          <Text style={styles.navBtnIcon}>📊</Text>
-          <Text style={styles.navBtnText}>{t("leaderboard")}</Text>
-        </TouchableOpacity>
+        {/* Day 1 */}
+        {evaluationSummary && (
+          <View
+            style={[
+              styles.evalCard,
+              evaluationSummary.day1.isCompleted && styles.evalCardCompleted,
+            ]}
+          >
+            <View style={styles.evalHeader}>
+              <Text style={styles.evalIcon}>{evaluationSummary.day1.icon}</Text>
+              <View style={styles.evalInfo}>
+                <Text style={styles.evalTitle}>
+                  {i18n.language === "fr"
+                    ? "Jour 1 (20 octobre)"
+                    : "Day 1 (October 20)"}
+                </Text>
+                {evaluationSummary.day1.isCompleted ? (
+                  <Text style={styles.evalStatusCompleted}>
+                    ✓ {i18n.language === "fr" ? "Complétée" : "Completed"}
+                  </Text>
+                ) : evaluationSummary.day1.isOpen ? (
+                  <Text style={styles.evalStatusAvailable}>
+                    🔴 {i18n.language === "fr" ? "À faire" : "To do"}
+                  </Text>
+                ) : (
+                  <Text style={styles.evalStatusLocked}>
+                    🔒{" "}
+                    {i18n.language === "fr"
+                      ? "Pas encore disponible"
+                      : "Not yet available"}
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            {evaluationSummary.day1.isOpen &&
+              !evaluationSummary.day1.isCompleted && (
+                <TouchableOpacity
+                  style={styles.evalButton}
+                  onPress={() => handleStartEvaluation("day1")}
+                >
+                  <Text style={styles.evalButtonText}>
+                    📝{" "}
+                    {i18n.language === "fr"
+                      ? "Faire l'évaluation"
+                      : "Take evaluation"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+          </View>
+        )}
+
+        {/* Day 2 */}
+        {evaluationSummary && (
+          <View
+            style={[
+              styles.evalCard,
+              evaluationSummary.day2.isCompleted && styles.evalCardCompleted,
+            ]}
+          >
+            <View style={styles.evalHeader}>
+              <Text style={styles.evalIcon}>{evaluationSummary.day2.icon}</Text>
+              <View style={styles.evalInfo}>
+                <Text style={styles.evalTitle}>
+                  {i18n.language === "fr"
+                    ? "Jour 2 (21 octobre)"
+                    : "Day 2 (October 21)"}
+                </Text>
+                {evaluationSummary.day2.isCompleted ? (
+                  <Text style={styles.evalStatusCompleted}>
+                    ✓ {i18n.language === "fr" ? "Complétée" : "Completed"}
+                  </Text>
+                ) : evaluationSummary.day2.canStart &&
+                  evaluationSummary.day2.isOpen ? (
+                  <Text style={styles.evalStatusAvailable}>
+                    🔴 {i18n.language === "fr" ? "À faire" : "To do"}
+                  </Text>
+                ) : !evaluationSummary.day2.canStart ? (
+                  <Text style={styles.evalStatusBlocked}>
+                    🔒{" "}
+                    {i18n.language === "fr"
+                      ? "Complétez Jour 1 d'abord"
+                      : "Complete Day 1 first"}
+                  </Text>
+                ) : (
+                  <Text style={styles.evalStatusLocked}>
+                    🔒{" "}
+                    {i18n.language === "fr"
+                      ? "Pas encore disponible"
+                      : "Not yet available"}
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            {evaluationSummary.day2.canStart &&
+              evaluationSummary.day2.isOpen &&
+              !evaluationSummary.day2.isCompleted && (
+                <TouchableOpacity
+                  style={styles.evalButton}
+                  onPress={() => handleStartEvaluation("day2")}
+                >
+                  <Text style={styles.evalButtonText}>
+                    📝{" "}
+                    {i18n.language === "fr"
+                      ? "Faire l'évaluation"
+                      : "Take evaluation"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+          </View>
+        )}
+
+        {/* Final */}
+        {evaluationSummary && (
+          <View
+            style={[
+              styles.evalCard,
+              evaluationSummary.final.isCompleted && styles.evalCardCompleted,
+            ]}
+          >
+            <View style={styles.evalHeader}>
+              <Text style={styles.evalIcon}>
+                {evaluationSummary.final.icon}
+              </Text>
+              <View style={styles.evalInfo}>
+                <Text style={styles.evalTitle}>
+                  {i18n.language === "fr"
+                    ? "Évaluation Finale (22 octobre)"
+                    : "Final Evaluation (October 22)"}
+                </Text>
+                {evaluationSummary.final.isCompleted ? (
+                  <Text style={styles.evalStatusCompleted}>
+                    ✓ {i18n.language === "fr" ? "Complétée" : "Completed"}
+                  </Text>
+                ) : evaluationSummary.final.canStart &&
+                  evaluationSummary.final.isOpen ? (
+                  <Text style={styles.evalStatusAvailable}>
+                    🔴 {i18n.language === "fr" ? "À faire" : "To do"}
+                  </Text>
+                ) : !evaluationSummary.final.canStart ? (
+                  <Text style={styles.evalStatusBlocked}>
+                    🔒{" "}
+                    {i18n.language === "fr"
+                      ? "Complétez Jour 1 & 2 d'abord"
+                      : "Complete Day 1 & 2 first"}
+                  </Text>
+                ) : (
+                  <Text style={styles.evalStatusLocked}>
+                    🔒{" "}
+                    {i18n.language === "fr"
+                      ? "Pas encore disponible"
+                      : "Not yet available"}
+                  </Text>
+                )}
+              </View>
+            </View>
+
+            {evaluationSummary.final.canStart &&
+              evaluationSummary.final.isOpen &&
+              !evaluationSummary.final.isCompleted && (
+                <TouchableOpacity
+                  style={styles.evalButton}
+                  onPress={() => handleStartEvaluation("final")}
+                >
+                  <Text style={styles.evalButtonText}>
+                    📝{" "}
+                    {i18n.language === "fr"
+                      ? "Faire l'évaluation finale"
+                      : "Take final evaluation"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+          </View>
+        )}
       </View>
+
+      {/* Bouton Programme */}
+      <TouchableOpacity
+        style={styles.programButton}
+        onPress={() => navigation.navigate("Program")}
+      >
+        <Text style={styles.programButtonIcon}>📅</Text>
+        <Text style={styles.programButtonText}>
+          {i18n.language === "fr"
+            ? "Voir le Programme Complet"
+            : "View Full Program"}
+        </Text>
+      </TouchableOpacity>
+
+      <View style={{ height: 40 }} />
     </ScrollView>
   );
 }
@@ -251,9 +369,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  logoSmall: {
-    width: 50,
-    height: 50,
+  headerLogos: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  logoTiny: {
+    width: 35,
+    height: 35,
   },
   headerText: {
     flex: 1,
@@ -261,7 +383,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     color: COLORS.white,
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "bold",
   },
   headerCode: {
@@ -269,145 +391,157 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
-  refreshBtn: {
-    fontSize: 24,
-  },
-  logoutBtn: {
-    fontSize: 28,
-  },
-  statsContainer: {
+  headerActions: {
     flexDirection: "row",
-    padding: 15,
     gap: 15,
   },
-  statCard: {
-    flex: 1,
+  refreshBtn: {
+    padding: 5,
+  },
+  refreshIcon: {
+    fontSize: 24,
+  },
+  logoutIcon: {
+    fontSize: 28,
+  },
+  progressSection: {
     backgroundColor: COLORS.white,
+    margin: 15,
     padding: 20,
     borderRadius: 15,
-    alignItems: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  statLabel: {
-    color: COLORS.gray,
-    fontSize: 14,
-    marginBottom: 8,
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
   },
-  statValue: {
-    color: COLORS.primary,
-    fontSize: 32,
+  progressLabel: {
+    fontSize: 16,
     fontWeight: "bold",
+    color: COLORS.black,
   },
-  progressContainer: {
-    padding: 15,
+  progressValue: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: COLORS.primary,
   },
   progressBar: {
-    height: 10,
+    height: 12,
     backgroundColor: COLORS.lightGray,
-    borderRadius: 5,
+    borderRadius: 6,
     overflow: "hidden",
-    borderWidth: 1,
-    borderColor: COLORS.gray,
+    marginBottom: 8,
   },
   progressFill: {
     height: "100%",
-    backgroundColor: COLORS.gold,
+    backgroundColor: COLORS.secondary,
   },
   progressText: {
+    fontSize: 14,
     color: COLORS.gray,
-    fontSize: 12,
-    marginTop: 5,
     textAlign: "center",
   },
-  activityCard: {
-    margin: 15,
+  evaluationsSection: {
+    padding: 15,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: COLORS.black,
+    marginBottom: 15,
+  },
+  evalCard: {
     backgroundColor: COLORS.white,
-    padding: 20,
     borderRadius: 15,
-    borderLeftWidth: 5,
-    borderLeftColor: COLORS.secondary,
+    padding: 20,
+    marginBottom: 15,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  activityLabel: {
-    color: COLORS.secondary,
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 8,
+  evalCardCompleted: {
+    borderWidth: 2,
+    borderColor: COLORS.secondary,
+    backgroundColor: "#F0FDF4",
   },
-  activityTitle: {
-    color: COLORS.black,
-    fontSize: 18,
-    fontWeight: "bold",
+  evalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 15,
   },
-  pulseBtn: {
+  evalIcon: {
+    fontSize: 40,
+    marginRight: 15,
+  },
+  evalInfo: {
+    flex: 1,
+  },
+  evalTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: COLORS.black,
+    marginBottom: 5,
+  },
+  evalStatusCompleted: {
+    fontSize: 14,
+    color: COLORS.secondary,
+    fontWeight: "600",
+  },
+  evalStatusAvailable: {
+    fontSize: 14,
+    color: COLORS.danger,
+    fontWeight: "600",
+  },
+  evalStatusLocked: {
+    fontSize: 14,
+    color: COLORS.gray,
+    fontWeight: "600",
+  },
+  evalStatusBlocked: {
+    fontSize: 13,
+    color: COLORS.accent,
+    fontWeight: "600",
+  },
+  evalButton: {
     backgroundColor: COLORS.primary,
     padding: 15,
     borderRadius: 10,
     alignItems: "center",
   },
-  pulseBtnText: {
+  evalButtonText: {
     color: COLORS.white,
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "bold",
   },
-  loadingText: {
-    color: COLORS.gray,
-    fontSize: 14,
-    marginTop: 10,
-    textAlign: "center",
-  },
-  noActivityText: {
-    color: COLORS.gray,
-    fontSize: 14,
-    textAlign: "center",
-    marginVertical: 15,
-  },
-  refreshBtnContainer: {
-    backgroundColor: COLORS.lightGray,
-    padding: 12,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 10,
-  },
-  refreshBtnText: {
-    color: COLORS.primary,
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  navButtons: {
-    flexDirection: "row",
-    padding: 15,
-    gap: 15,
-    marginBottom: 30,
-  },
-  navBtn: {
-    flex: 1,
+  programButton: {
     backgroundColor: COLORS.white,
+    margin: 15,
     padding: 20,
     borderRadius: 15,
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  navBtnIcon: {
-    fontSize: 40,
-    marginBottom: 10,
+  programButtonIcon: {
+    fontSize: 28,
+    marginRight: 10,
   },
-  navBtnText: {
-    color: COLORS.black,
-    fontSize: 14,
-    fontWeight: "600",
+  programButtonText: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: COLORS.primary,
   },
 });

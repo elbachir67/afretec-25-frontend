@@ -2,7 +2,15 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { COLORS } from "../../constants/theme";
+
+const COLORS = {
+  primary: "#1E40AF",
+  secondary: "#10B981",
+  gray: "#6B7280",
+  lightGray: "#F3F4F6",
+  white: "#FFFFFF",
+  black: "#111827",
+};
 
 export default function WelcomeScreen({ navigation }) {
   const { t, i18n } = useTranslation();
@@ -14,16 +22,23 @@ export default function WelcomeScreen({ navigation }) {
 
   return (
     <View style={styles.container}>
-      {/* Logo UCAD */}
-      <Image
-        source={require("../../../assets/images/logo_ucad.png")}
-        style={styles.logo}
-        resizeMode="contain"
-      />
+      {/* Logos UCAD + Afretec */}
+      <View style={styles.logosContainer}>
+        <Image
+          source={require("../../../assets/images/logo_ucad.png")}
+          style={styles.logo1}
+          resizeMode="contain"
+        />
+        <Image
+          source={require("../../../assets/images/logo_afretec.png")}
+          style={styles.logo2}
+          resizeMode="contain"
+        />
+      </View>
 
       {/* Titre */}
       <Text style={styles.title}>{t("welcome")}</Text>
-      <Text style={styles.subtitle}>🌍 Afretec 2025</Text>
+      <Text style={styles.subtitle}>🌍 Afretec Conference 2025</Text>
 
       {/* Sélecteur de langue */}
       <View style={styles.langContainer}>
@@ -70,7 +85,7 @@ export default function WelcomeScreen({ navigation }) {
         style={styles.primaryBtn}
         onPress={() => navigation.navigate("Register")}
       >
-        <Text style={styles.btnText}>{t("register")}</Text>
+        <Text style={styles.primaryBtnText}>{t("register")}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
@@ -91,15 +106,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     padding: 20,
   },
-  logo: {
-    width: 120,
-    height: 120,
+  logosContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 20,
     marginBottom: 30,
+  },
+  logo1: {
+    width: 100,
+    height: 100,
+  },
+  logo2: {
+    width: 150,
+    height: 150,
   },
   title: {
     fontSize: 26,
     fontWeight: "bold",
-    color: COLORS.primary,
+    color: COLORS.black,
     textAlign: "center",
     marginBottom: 10,
   },
@@ -150,7 +175,7 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "center",
   },
-  btnText: {
+  primaryBtnText: {
     color: COLORS.white,
     fontSize: 18,
     fontWeight: "bold",

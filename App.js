@@ -4,12 +4,9 @@ import WelcomeScreen from "./src/screens/auth/WelcomeScreen";
 import RegisterScreen from "./src/screens/auth/RegisterScreen";
 import LoginScreen from "./src/screens/auth/LoginScreen";
 import DashboardScreen from "./src/screens/main/DashboardScreen";
-import MicroEvalScreen from "./src/screens/main/MicroEvalScreen";
+import EvaluationScreen from "./src/screens/main/EvaluationScreen";
+import ProgramScreen from "./src/screens/main/ProgramScreen";
 import "./src/i18n";
-
-import BadgesScreen from "./src/screens/main/BadgesScreen";
-
-import LeaderboardScreen from "./src/screens/main/LeaderboardScreen";
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState("Welcome");
@@ -21,11 +18,16 @@ export default function App() {
   }, []);
 
   const checkAuth = async () => {
-    const code = await AsyncStorage.getItem("participantCode");
-    if (code) {
-      setCurrentScreen("Dashboard");
+    try {
+      const code = await AsyncStorage.getItem("participantCode");
+      if (code) {
+        setCurrentScreen("Dashboard");
+      }
+    } catch (error) {
+      console.error("Auth check error:", error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const navigation = {
@@ -39,36 +41,37 @@ export default function App() {
     },
   };
 
+  // Loading state
   if (loading) {
     return null;
   }
 
-  if (currentScreen === "MicroEval") {
-    return (
-      <MicroEvalScreen
-        route={{ params: screenParams }}
-        navigation={navigation}
-      />
-    );
-  }
+  // Router
+  switch (currentScreen) {
+    case "Welcome":
+      return <WelcomeScreen navigation={navigation} />;
 
-  if (currentScreen === "Dashboard") {
-    return <DashboardScreen navigation={navigation} />;
-  }
+    case "Register":
+      return <RegisterScreen navigation={navigation} />;
 
-  if (currentScreen === "Register") {
-    return <RegisterScreen navigation={navigation} />;
-  }
+    case "Login":
+      return <LoginScreen navigation={navigation} />;
 
-  if (currentScreen === "Login") {
-    return <LoginScreen navigation={navigation} />;
-  }
-  if (currentScreen === "Badges") {
-    return <BadgesScreen navigation={navigation} />;
-  }
-  if (currentScreen === "Leaderboard") {
-    return <LeaderboardScreen navigation={navigation} />;
-  }
+    case "Dashboard":
+      return <DashboardScreen navigation={navigation} />;
 
-  return <WelcomeScreen navigation={navigation} />;
+    case "Evaluation":
+      return (
+        <EvaluationScreen
+          route={{ params: screenParams }}
+          navigation={navigation}
+        />
+      );
+
+    case "Program":
+      return <ProgramScreen navigation={navigation} />;
+
+    default:
+      return <WelcomeScreen navigation={navigation} />;
+  }
 }

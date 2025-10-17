@@ -180,25 +180,24 @@ export const canSubmitEvaluation = async (participantCode, evaluationType) => {
  * @param {Object} responses - Réponses du formulaire
  * @throws {Error} Si validation échoue
  */
+// Dans evaluationService.js - Fonction à REMPLACER
 const validateResponses = (evaluationType, responses) => {
   if (!responses || typeof responses !== "object") {
     throw new Error("Invalid responses format");
   }
 
-  // Validation basique - peut être étendue selon besoins
-  const requiredFields = {
-    day1: ["logistics_rating", "schedule_balanced"],
-    day2: ["logistics_rating", "schedule_balanced"],
-    final: ["overall_rating", "most_impactful_thing", "network_feeling"],
-  };
-
-  const required = requiredFields[evaluationType] || [];
-
-  for (const field of required) {
-    if (!responses[field]) {
-      throw new Error(`Missing required field: ${field}`);
-    }
+  // Validation SIMPLIFIÉE - Vérifie juste qu'il y a des réponses
+  if (Object.keys(responses).length === 0) {
+    throw new Error("No responses provided");
   }
+
+  // Pour Final, vérifier au moins un champ important
+  if (evaluationType === "final" && !responses.overall_rating) {
+    throw new Error("Missing required field: overall_rating");
+  }
+
+  // Pour Day1/Day2, pas de validation stricte
+  return true;
 };
 
 /**

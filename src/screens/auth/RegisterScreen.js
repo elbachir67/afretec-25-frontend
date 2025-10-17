@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   Image,
+  ScrollView,
 } from "react-native";
 import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -24,16 +25,48 @@ const COLORS = {
   gold: "#FCD34D",
 };
 
+// Liste des institutions partenaires
+const INSTITUTIONS = [
+  "Cheikh Anta Diop University",
+  "American University in Cairo",
+  "University of Lagos",
+  "University of Nairobi",
+  "University of Rwanda",
+  "University of the Witwatersrand",
+  "Al Akhawayn University",
+  "Carnegie Mellon Africa",
+  "Mastercard Foundation",
+  "Autre / Other",
+];
+
 export default function RegisterScreen({ navigation }) {
   const { t, i18n } = useTranslation();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [institution, setInstitution] = useState("");
+  const [customInstitution, setCustomInstitution] = useState("");
   const [code, setCode] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    // Validation email
+    // Validation
+    if (!name.trim()) {
+      Alert.alert(t("error") || "Error", "Please enter your name");
+      return;
+    }
+
     if (!email || !email.includes("@")) {
       Alert.alert(t("error") || "Error", "Invalid email");
+      return;
+    }
+
+    if (!institution) {
+      Alert.alert(t("error") || "Error", "Please select your institution");
+      return;
+    }
+
+    if (institution === "Autre / Other" && !customInstitution.trim()) {
+      Alert.alert(t("error") || "Error", "Please specify your institution");
       return;
     }
 
@@ -43,20 +76,33 @@ export default function RegisterScreen({ navigation }) {
       // Générer code unique
       const newCode = generateCode();
 
-      // Créer participant dans Firestore
-      await createParticipant(email, newCode, i18n.language);
+      // Déterminer l'institution finale
+      const finalInstitution =
+        institution === "Autre / Other" ? customInstitution : institution;
+
+      // Créer participant avec toutes les infos
+      const result = await createParticipant(
+        email,
+        newCode,
+        i18n.language,
+        name,
+        finalInstitution
+      );
 
       // Sauvegarder localement
-      await AsyncStorage.setItem("participantCode", newCode);
+      await AsyncStorage.setItem("participantCode", result.code);
       await AsyncStorage.setItem("participantEmail", email);
+      await AsyncStorage.setItem("participantId", result.id);
+      await AsyncStorage.setItem("participantName", name);
+      await AsyncStorage.setItem("participantInstitution", finalInstitution);
 
       // Afficher le code
-      setCode(newCode);
+      setCode(result.code);
     } catch (error) {
       console.error("Registration error:", error);
       Alert.alert(
         t("error") || "Error",
-        "Registration failed. Please try again."
+        error.message || "Registration failed. Please try again."
       );
     } finally {
       setLoading(false);
@@ -71,7 +117,6 @@ export default function RegisterScreen({ navigation }) {
   if (code) {
     return (
       <View style={styles.container}>
-        {/* Logo UCAD */}
         <Image
           source={require("../../../assets/images/logo_ucad.png")}
           style={styles.logoSmall}
@@ -95,49 +140,108 @@ export default function RegisterScreen({ navigation }) {
     );
   }
 
-  // Vue inscription initiale
+  // Vue inscription
   return (
-    <View style={styles.container}>
-      {/* Logo UCAD */}
-      <Image
-        source={require("../../../assets/images/logo_ucad.png")}
-        style={styles.logoSmall}
-        resizeMode="contain"
-      />
+    <ScrollView style={styles.scrollView}>
+      <View style={styles.container}>
+        <Image
+          source={require("../../../assets/images/logo_ucad.png")}
+          style={styles.logoSmall}
+          resizeMode="contain"
+        />
 
-      <Text style={styles.title}>{t("register")}</Text>
-      <Text style={styles.subtitle}>Afretec 2025 Conference</Text>
+        <Text style={styles.title}>{t("register")}</Text>
+        <Text style={styles.subtitle}>Afretec 2025 Conference</Text>
 
-      <TextInput
-        style={styles.input}
-        placeholder={t("enterEmail")}
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        editable={!loading}
-      />
+        {/* Nom */}
+        <TextInput
+          style={styles.input}
+          placeholder={i18n.language === "fr" ? "Nom complet" : "Full name"}
+          value={name}
+          onChangeText={setName}
+          editable={!loading}
+        />
 
-      <TouchableOpacity
-        style={[styles.primaryBtn, loading && styles.btnDisabled]}
-        onPress={handleRegister}
-        disabled={loading}
-      >
-        {loading ? (
-          <ActivityIndicator color={COLORS.white} />
-        ) : (
-          <Text style={styles.btnText}>{t("register")}</Text>
+        {/* Email */}
+        <TextInput
+          style={styles.input}
+          placeholder={t("enterEmail")}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          editable={!loading}
+        />
+
+        {/* Institution - Sélecteur */}
+        <Text style={styles.label}>
+          {i18n.language === "fr" ? "Institution" : "Institution"}
+        </Text>
+        <View style={styles.institutionList}>
+          {INSTITUTIONS.map(inst => (
+            <TouchableOpacity
+              key={inst}
+              style={[
+                styles.institutionBtn,
+                institution === inst && styles.institutionBtnActive,
+              ]}
+              onPress={() => setInstitution(inst)}
+              disabled={loading}
+            >
+              <Text
+                style={[
+                  styles.institutionText,
+                  institution === inst && styles.institutionTextActive,
+                ]}
+              >
+                {institution === inst ? "✓ " : ""}
+                {inst}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Champ "Autre" */}
+        {institution === "Autre / Other" && (
+          <TextInput
+            style={styles.input}
+            placeholder={
+              i18n.language === "fr"
+                ? "Précisez votre institution"
+                : "Specify your institution"
+            }
+            value={customInstitution}
+            onChangeText={setCustomInstitution}
+            editable={!loading}
+          />
         )}
-      </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => navigation.navigate("Welcome")}>
-        <Text style={styles.linkText}>← {t("back")}</Text>
-      </TouchableOpacity>
-    </View>
+        {/* Bouton Register */}
+        <TouchableOpacity
+          style={[styles.primaryBtn, loading && styles.btnDisabled]}
+          onPress={handleRegister}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color={COLORS.white} />
+          ) : (
+            <Text style={styles.btnText}>{t("register")}</Text>
+          )}
+        </TouchableOpacity>
+
+        <TouchableOpacity onPress={() => navigation.navigate("Welcome")}>
+          <Text style={styles.linkText}>← {t("back")}</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  scrollView: {
+    flex: 1,
+    backgroundColor: COLORS.white,
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.white,
@@ -161,6 +265,14 @@ const styles = StyleSheet.create({
     color: COLORS.gray,
     marginBottom: 30,
   },
+  label: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.black,
+    alignSelf: "flex-start",
+    marginBottom: 10,
+    marginTop: 10,
+  },
   input: {
     width: "100%",
     borderWidth: 2,
@@ -168,8 +280,33 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 15,
     fontSize: 16,
-    marginBottom: 20,
+    marginBottom: 15,
     backgroundColor: COLORS.white,
+  },
+  institutionList: {
+    width: "100%",
+    marginBottom: 15,
+  },
+  institutionBtn: {
+    width: "100%",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.lightGray,
+    marginBottom: 8,
+    backgroundColor: COLORS.white,
+  },
+  institutionBtnActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primary + "10",
+  },
+  institutionText: {
+    fontSize: 14,
+    color: COLORS.gray,
+  },
+  institutionTextActive: {
+    color: COLORS.primary,
+    fontWeight: "600",
   },
   primaryBtn: {
     backgroundColor: COLORS.primary,
@@ -178,6 +315,7 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     width: "100%",
     alignItems: "center",
+    marginTop: 20,
     marginBottom: 20,
   },
   btnDisabled: {
