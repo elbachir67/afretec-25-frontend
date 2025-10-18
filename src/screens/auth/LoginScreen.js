@@ -73,7 +73,7 @@ export default function LoginScreen({ navigation }) {
     <View style={styles.container}>
       {/* Logo UCAD */}
       <Image
-        source={require("../../../assets/images/logo_ucad.png")}
+        source={require("../../../assets/images/logo_afretec.png")}
         style={styles.logo}
         resizeMode="contain"
       />
@@ -119,8 +119,8 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   logo: {
-    width: 100,
-    height: 100,
+    width: 150,
+    height: 150,
     marginBottom: 30,
   },
   title: {

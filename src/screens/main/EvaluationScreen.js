@@ -569,7 +569,7 @@ export default function EvaluationScreen({ route, navigation }) {
                 ? "Votre expérience globale de la conférence"
                 : "Your overall conference experience"}
             </Text>
-            {renderChoice("overall_experience", [
+            {renderChoice("overall_rating", [
               {
                 value: "insufficient",
                 labelFr: "Insuffisant",

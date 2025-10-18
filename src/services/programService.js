@@ -126,9 +126,9 @@ export const formatActivityForDisplay = (activity, language = "fr") => {
 
   return {
     ...activity,
-    title: activity.title?.[language] || activity.title?.en || "",
-    description:
-      activity.description?.[language] || activity.description?.en || "",
+    displayTitle: activity.title?.[language] || activity.title?.en || "", // ← Changé !
+    displayDescription:
+      activity.description?.[language] || activity.description?.en || "", // ← Changé !
     typeLabel: typeInfo.label,
     typeIcon: typeInfo.icon,
     typeColor: typeInfo.color,

@@ -23,6 +23,8 @@ const COLORS = {
   white: "#FFFFFF",
   black: "#111827",
   gold: "#FCD34D",
+  success: "#D1FAE5",
+  successText: "#059669",
 };
 
 // Liste des institutions partenaires
@@ -96,6 +98,9 @@ export default function RegisterScreen({ navigation }) {
       await AsyncStorage.setItem("participantName", name);
       await AsyncStorage.setItem("participantInstitution", finalInstitution);
 
+      // TODO: Appeler Firebase Function pour envoyer l'email
+      // await sendCodeByEmail(email, name, result.code);
+
       // Afficher le code
       setCode(result.code);
     } catch (error) {
@@ -116,27 +121,102 @@ export default function RegisterScreen({ navigation }) {
   // Vue après génération du code
   if (code) {
     return (
-      <View style={styles.container}>
-        <Image
-          source={require("../../../assets/images/logo_ucad.png")}
-          style={styles.logoSmall}
-          resizeMode="contain"
-        />
+      <ScrollView style={styles.scrollView}>
+        <View style={styles.container}>
+          <Image
+            source={require("../../../assets/images/logo_ucad.png")}
+            style={styles.logoSmall}
+            resizeMode="contain"
+          />
 
-        <Text style={styles.successIcon}>✅</Text>
-        <Text style={styles.title}>{t("yourCode")}</Text>
+          <Text style={styles.successIcon}>🎉</Text>
+          <Text style={styles.successTitle}>
+            {i18n.language === "fr"
+              ? "Inscription réussie !"
+              : "Registration Successful!"}
+          </Text>
 
-        <View style={styles.codeContainer}>
-          <Text style={styles.code}>{code}</Text>
+          {/* Email notification */}
+          <View style={styles.emailNotification}>
+            <Text style={styles.emailIcon}>📧</Text>
+            <Text style={styles.emailText}>
+              {i18n.language === "fr"
+                ? `Un email a été envoyé à ${email}`
+                : `An email has been sent to ${email}`}
+            </Text>
+          </View>
+
+          {/* Code display with emphasis */}
+          <View style={styles.codeSection}>
+            <Text style={styles.codeLabel}>
+              {i18n.language === "fr"
+                ? "Votre code d'accès"
+                : "Your access code"}
+            </Text>
+
+            <View style={styles.codeContainer}>
+              <Text style={styles.code}>{code}</Text>
+            </View>
+
+            <View style={styles.warningBox}>
+              <Text style={styles.warningIcon}>⚠️</Text>
+              <Text style={styles.warningText}>
+                {i18n.language === "fr"
+                  ? "IMPORTANT : Notez ou photographiez ce code. Vous en aurez besoin pour accéder aux évaluations."
+                  : "IMPORTANT: Write down or take a screenshot of this code. You will need it to access evaluations."}
+              </Text>
+            </View>
+
+            {/* Screenshot reminder */}
+            <View style={styles.screenshotReminder}>
+              <Text style={styles.screenshotIcon}>📸</Text>
+              <Text style={styles.screenshotText}>
+                {i18n.language === "fr"
+                  ? "Prenez une capture d'écran maintenant !"
+                  : "Take a screenshot now!"}
+              </Text>
+            </View>
+          </View>
+
+          {/* Instructions */}
+          <View style={styles.instructionsBox}>
+            <Text style={styles.instructionsTitle}>
+              {i18n.language === "fr"
+                ? "Comment utiliser votre code :"
+                : "How to use your code:"}
+            </Text>
+            <Text style={styles.instructionItem}>
+              {i18n.language === "fr"
+                ? "1️⃣ Conservez ce code précieusement"
+                : "1️⃣ Keep this code safely"}
+            </Text>
+            <Text style={styles.instructionItem}>
+              {i18n.language === "fr"
+                ? "2️⃣ Utilisez-le pour vous connecter à l'application"
+                : "2️⃣ Use it to log in to the application"}
+            </Text>
+            <Text style={styles.instructionItem}>
+              {i18n.language === "fr"
+                ? "3️⃣ Accédez aux évaluations quotidiennes"
+                : "3️⃣ Access daily evaluations"}
+            </Text>
+          </View>
+
+          {/* Continue button */}
+          <TouchableOpacity style={styles.primaryBtn} onPress={handleContinue}>
+            <Text style={styles.btnText}>
+              {i18n.language === "fr" ? "Continuer →" : "Continue →"}
+            </Text>
+          </TouchableOpacity>
+
+          {/* Email reminder at bottom */}
+          <Text style={styles.emailReminder}>
+            {i18n.language === "fr"
+              ? "💌 N'oubliez pas de vérifier votre boîte email"
+              : "💌 Don't forget to check your email inbox"}
+          </Text>
         </View>
-
-        <Text style={styles.saveText}>{t("saveCode")}</Text>
-        <Text style={styles.warningText}>📸 Take a screenshot!</Text>
-
-        <TouchableOpacity style={styles.primaryBtn} onPress={handleContinue}>
-          <Text style={styles.btnText}>{t("continue")} →</Text>
-        </TouchableOpacity>
-      </View>
+      </ScrollView>
     );
   }
 
@@ -145,7 +225,7 @@ export default function RegisterScreen({ navigation }) {
     <ScrollView style={styles.scrollView}>
       <View style={styles.container}>
         <Image
-          source={require("../../../assets/images/logo_ucad.png")}
+          source={require("../../../assets/images/logo_afretec.png")}
           style={styles.logoSmall}
           resizeMode="contain"
         />
@@ -248,10 +328,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     padding: 20,
+    paddingTop: 40,
+    paddingBottom: 40,
   },
   logoSmall: {
-    width: 80,
-    height: 80,
+    width: 130,
+    height: 130,
     marginBottom: 20,
   },
   title: {
@@ -330,35 +412,127 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     fontSize: 16,
   },
+
+  // Success screen styles
   successIcon: {
     fontSize: 80,
-    marginBottom: 20,
+    marginBottom: 15,
+  },
+  successTitle: {
+    fontSize: 26,
+    fontWeight: "bold",
+    color: COLORS.primary,
+    marginBottom: 25,
+    textAlign: "center",
+  },
+  emailNotification: {
+    backgroundColor: COLORS.success,
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 30,
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  emailIcon: {
+    fontSize: 24,
+  },
+  emailText: {
+    flex: 1,
+    fontSize: 14,
+    color: COLORS.successText,
+    fontWeight: "600",
+  },
+  codeSection: {
+    width: "100%",
+    alignItems: "center",
+    marginBottom: 25,
+  },
+  codeLabel: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: COLORS.black,
+    marginBottom: 15,
   },
   codeContainer: {
     backgroundColor: COLORS.lightGray,
-    padding: 20,
+    padding: 25,
     borderRadius: 15,
     marginBottom: 20,
-    borderWidth: 3,
+    borderWidth: 4,
     borderColor: COLORS.gold,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
   },
   code: {
-    fontSize: 36,
+    fontSize: 42,
     fontWeight: "bold",
     color: COLORS.primary,
-    letterSpacing: 3,
+    letterSpacing: 8,
   },
-  saveText: {
-    fontSize: 18,
-    color: COLORS.gray,
-    textAlign: "center",
-    marginBottom: 10,
-    fontWeight: "600",
+  warningBox: {
+    backgroundColor: "#FEF3C7",
+    padding: 15,
+    borderRadius: 12,
+    marginBottom: 15,
+    width: "100%",
+    flexDirection: "row",
+    gap: 10,
+  },
+  warningIcon: {
+    fontSize: 24,
   },
   warningText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#92400E",
+    fontWeight: "600",
+    lineHeight: 20,
+  },
+  screenshotReminder: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: COLORS.primary + "15",
+    padding: 12,
+    borderRadius: 10,
+    width: "100%",
+  },
+  screenshotIcon: {
+    fontSize: 24,
+  },
+  screenshotText: {
     fontSize: 16,
     color: COLORS.primary,
+    fontWeight: "bold",
+  },
+  instructionsBox: {
+    backgroundColor: COLORS.lightGray,
+    padding: 20,
+    borderRadius: 12,
+    width: "100%",
+    marginBottom: 25,
+  },
+  instructionsTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: COLORS.black,
+    marginBottom: 12,
+  },
+  instructionItem: {
+    fontSize: 14,
+    color: COLORS.gray,
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  emailReminder: {
+    fontSize: 14,
+    color: COLORS.gray,
     textAlign: "center",
-    marginBottom: 30,
+    fontStyle: "italic",
   },
 });
