@@ -1,0 +1,59 @@
+Excellent ! Ton `app.json` est déjà bien configuré avec un projectId EAS. 🎉
+
+## ✅ Configuration actuelle
+
+Je vois que :
+- ✅ Tu as déjà un projet EAS configuré (`186b8d78-f3d3-4d8f-ad07-239f603fcbdb`)
+- ✅ Bundle IDs configurés : `com.elbachir67.afretecpulseapp`
+- ✅ Version 1.0.0 définie
+
+---
+
+## 🚀 **Étape suivante : Créer le fichier `eas.json`**
+
+Si tu n'as pas encore de fichier `eas.json`, crée-le à la racine du projet avec cette configuration :---
+
+## 📦 **Maintenant : Créer les builds de test**
+
+### **Build Android (APK) - Le plus simple pour tester**
+
+```bash
+eas build --platform android --profile preview
+```
+
+Cette commande va :
+1. 📤 Upload ton code vers les serveurs EAS
+2. 🔨 Compiler l'application Android
+3. 📱 Générer un fichier **APK** que tu pourras installer directement
+
+**Temps estimé** : 10-20 minutes
+
+### **Build iOS (IPA) - Nécessite un compte Apple**
+
+⚠️ **Important** : Pour iOS, tu auras besoin :
+- Un compte Apple Developer (99$/an)
+- Ou juste un Apple ID gratuit pour tester (limité à 7 jours)
+
+```bash
+eas build --platform ios --profile preview
+```
+
+---
+
+## 🎯 **Lance d'abord le build Android**
+
+```bash
+eas build --platform android --profile preview
+```
+
+**Ce qui va se passer :**
+1. EAS va te demander si tu veux générer un nouveau keystore Android (réponds **yes**)
+2. Le build va démarrer dans le cloud
+3. Tu recevras un lien pour télécharger l'APK
+
+**Lance cette commande maintenant et dis-moi ce qui se passe !** 🚀
+
+Une fois l'APK créé, tu pourras :
+- Le télécharger sur ton téléphone Android
+- L'installer directement (Active "Sources inconnues" dans les paramètres)
+- Tester l'application avant de passer aux stores !
